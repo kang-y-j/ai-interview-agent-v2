@@ -1,8 +1,9 @@
 import os
+import hmac
 import secrets
 import tempfile
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -34,6 +35,20 @@ app.add_middleware(
 # 업로드 제한
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5MB
 PDF_MAGIC = b"%PDF-"
+
+# 비밀 키 인증.
+# APP_API_KEY 가 설정돼 있으면 모든 주요 엔드포인트에서 X-API-Key 헤더를 요구한다.
+# (로컬 개발용으로 비워두면 인증을 건너뛴다 — 배포 시에는 반드시 설정할 것)
+APP_API_KEY = os.getenv("APP_API_KEY")
+
+
+def require_api_key(x_api_key: str = Header(None)):
+    if not APP_API_KEY:
+        return  # 키 미설정(로컬 개발) → 통과
+    # 타이밍 공격 방지를 위해 상수 시간 비교
+    if not x_api_key or not hmac.compare_digest(x_api_key, APP_API_KEY):
+        raise HTTPException(status_code=401, detail="유효하지 않은 API 키입니다.")
+
 
 vectorstores = {}
 
@@ -71,7 +86,9 @@ class OverallFeedbackRequest(BaseModel):
 
 
 @app.post("/upload")
-async def upload_resume(file: UploadFile = File(...)):
+async def upload_resume(
+    file: UploadFile = File(...), _: None = Depends(require_api_key)
+):
     content = await file.read()
 
     # 크기 검증
@@ -111,7 +128,9 @@ def _get_vectorstore(session_id: str):
 
 
 @app.post("/questions/{session_id}")
-async def get_questions(session_id: str, data: QuestionsRequest):
+async def get_questions(
+    session_id: str, data: QuestionsRequest, _: None = Depends(require_api_key)
+):
     vectorstore = _get_vectorstore(session_id)
     resume_content = search_resume(vectorstore, "스킬 프로젝트 경험 학력 자격증")
 
@@ -129,7 +148,7 @@ async def get_questions(session_id: str, data: QuestionsRequest):
 
 
 @app.post("/evaluate")
-async def evaluate(data: EvaluateRequest):
+async def evaluate(data: EvaluateRequest, _: None = Depends(require_api_key)):
     feedback = await evaluate_answer(
         data.question, data.answer, data.job_field, data.level
     )
@@ -142,7 +161,7 @@ def root():
 
 
 @app.post("/followup")
-async def followup(data: FollowupRequest):
+async def followup(data: FollowupRequest, _: None = Depends(require_api_key)):
     result = await generate_followup(
         data.question,
         data.answer,
@@ -159,7 +178,9 @@ async def followup(data: FollowupRequest):
 
 
 @app.post("/overall-feedback")
-async def overall_feedback(data: OverallFeedbackRequest):
+async def overall_feedback(
+    data: OverallFeedbackRequest, _: None = Depends(require_api_key)
+):
     history = [item.model_dump() for item in data.history]
     feedback = await generate_overall_feedback(history, data.job_field, data.level)
     return {"feedback": feedback}

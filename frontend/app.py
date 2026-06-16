@@ -1,7 +1,16 @@
+import os
 import streamlit as st
 import requests
+from dotenv import load_dotenv
 
-API_URL = "http://127.0.0.1:8000"
+load_dotenv()
+
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
+
+# 백엔드와 공유하는 비밀 키. 환경변수 APP_API_KEY 로 설정한다.
+# (백엔드에서 키를 설정하지 않았다면 빈 값이어도 동작한다)
+API_KEY = os.getenv("APP_API_KEY", "")
+HEADERS = {"X-API-Key": API_KEY} if API_KEY else {}
 
 st.title("🤖 AI 면접관 에이전트")
 st.write("이력서 기반으로 면접 질문을 생성하고 답변을 평가해줍니다.")
@@ -24,14 +33,14 @@ if uploaded_file:
     if st.button("면접 시작"):
         with st.spinner("이력서 분석 중..."):
             files = {"file": (uploaded_file.name, uploaded_file, "application/pdf")}
-            res = requests.post(f"{API_URL}/upload", files=files)
+            res = requests.post(f"{API_URL}/upload", files=files, headers=HEADERS)
             session_id = res.json()["session_id"]
             st.session_state.session_id = session_id
             st.session_state.job_field = job_field
             st.session_state.level = level
 
         with st.spinner("질문 생성 중..."):
-            res = requests.post(f"{API_URL}/questions/{session_id}", json={
+            res = requests.post(f"{API_URL}/questions/{session_id}", headers=HEADERS, json={
                 "job_field": job_field,
                 "level": level
             })
@@ -74,7 +83,7 @@ if "started" in st.session_state and st.session_state.started and not st.session
 
             if followup_count < 2:
                 with st.spinner("다음 질문 준비 중..."):
-                    res = requests.post(f"{API_URL}/followup", json={
+                    res = requests.post(f"{API_URL}/followup", headers=HEADERS, json={
                         "question": question,
                         "answer": answer,
                         "previous_questions": st.session_state.previous_questions,
@@ -116,7 +125,7 @@ if "interview_done" in st.session_state and st.session_state.interview_done:
     st.header("📊 질문별 상세 피드백")
     for i, item in enumerate(st.session_state.history):
         with st.spinner(f"질문 {i+1} 평가 중..."):
-            res = requests.post(f"{API_URL}/evaluate", json={
+            res = requests.post(f"{API_URL}/evaluate", headers=HEADERS, json={
                 "question": item["question"],
                 "answer": item["answer"],
                 "job_field": st.session_state.job_field,
@@ -133,7 +142,7 @@ if "interview_done" in st.session_state and st.session_state.interview_done:
     # 종합 피드백
     st.header("🎯 종합 피드백")
     with st.spinner("종합 피드백 생성 중..."):
-        res = requests.post(f"{API_URL}/overall-feedback", json={
+        res = requests.post(f"{API_URL}/overall-feedback", headers=HEADERS, json={
             "history": st.session_state.history,
             "job_field": st.session_state.job_field,
             "level": st.session_state.level
