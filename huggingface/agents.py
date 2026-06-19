@@ -13,7 +13,7 @@ def _wrap(text: str) -> str:
 
 
 async def generate_questions(resume_content: str, job_field: str, level: str):
-    llm = LLM(model="gpt-4o-mini")
+    llm = LLM(model="gpt-5-mini")
 
     interviewer = Agent(
         role="interviewer",
@@ -46,7 +46,7 @@ async def generate_questions(resume_content: str, job_field: str, level: str):
 
 
 async def evaluate_answer(question: str, answer: str, job_field: str = "일반", level: str = "신입"):
-    llm = LLM(model="gpt-4o-mini")
+    llm = LLM(model="gpt-5-mini")
 
     evaluator = Agent(
         role="면접 코치",
@@ -92,7 +92,7 @@ async def evaluate_answer(question: str, answer: str, job_field: str = "일반",
 
 
 async def generate_followup(question: str, answer: str, previous_questions: list, job_field: str = "일반", level: str = "신입"):
-    llm = LLM(model="gpt-4o-mini")
+    llm = LLM(model="gpt-5-mini")
 
     previous = "\n".join(previous_questions) if previous_questions else "없음"
 
@@ -135,7 +135,7 @@ async def generate_followup(question: str, answer: str, previous_questions: list
 
 
 async def generate_overall_feedback(history: list, job_field: str = "일반", level: str = "신입"):
-    llm = LLM(model="gpt-4o-mini")
+    llm = LLM(model="gpt-5-mini")
 
     qa_text = ""
     for i, item in enumerate(history):
