@@ -44,7 +44,10 @@ if uploaded_file:
                 "job_field": job_field,
                 "level": level
             })
-            st.session_state.questions = res.json()["questions"]
+            resp = res.json()
+            st.session_state.questions = resp["questions"]
+            # 백엔드가 이력서 언어를 감지해 알려준다 → 면접 전체를 그 언어로 진행
+            st.session_state.language = resp.get("language", "한국어")
             st.session_state.started = True
             st.session_state.current_q = 0
             st.session_state.followup_count = 0
@@ -88,7 +91,8 @@ if "started" in st.session_state and st.session_state.started and not st.session
                         "answer": answer,
                         "previous_questions": st.session_state.previous_questions,
                         "job_field": job_field,
-                        "level": level
+                        "level": level,
+                        "language": st.session_state.language
                     })
                     data = res.json()
 
@@ -134,7 +138,8 @@ if "interview_done" in st.session_state and st.session_state.interview_done:
                 "question": item["question"],
                 "answer": item["answer"],
                 "job_field": st.session_state.job_field,
-                "level": st.session_state.level
+                "level": st.session_state.level,
+                "language": st.session_state.language
             })
             feedback = res.json()["feedback"]
 
@@ -150,7 +155,8 @@ if "interview_done" in st.session_state and st.session_state.interview_done:
         res = requests.post(f"{API_URL}/overall-feedback", headers=HEADERS, json={
             "history": st.session_state.history,
             "job_field": st.session_state.job_field,
-            "level": st.session_state.level
+            "level": st.session_state.level,
+            "language": st.session_state.language
         })
         overall = res.json()["feedback"]
     st.write(overall)

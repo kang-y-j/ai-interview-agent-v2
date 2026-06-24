@@ -15,7 +15,7 @@ import tempfile
 import streamlit as st
 from dotenv import load_dotenv
 
-from rag import create_vectorstore, search_resume
+from rag import create_vectorstore, search_resume, detect_language
 from agents import (
     generate_questions,
     evaluate_answer,
@@ -87,7 +87,11 @@ if uploaded_file:
 
         with st.spinner("질문 생성 중..."):
             resume_content = search_resume(vectorstore, "스킬 프로젝트 경험 학력 자격증")
-            questions_text = run_async(generate_questions(resume_content, job_field, level))
+            # 이력서 언어를 감지해 면접 전체를 그 언어로 진행
+            st.session_state.language = detect_language(resume_content)
+            questions_text = run_async(
+                generate_questions(resume_content, job_field, level, st.session_state.language)
+            )
 
             questions = []
             for line in questions_text.strip().split("\n"):
@@ -140,6 +144,7 @@ if "started" in st.session_state and st.session_state.started and not st.session
                         st.session_state.previous_questions,
                         job_field,
                         level,
+                        st.session_state.language,
                     ))
                     has_followup = result.startswith("FOLLOWUP:")
                     followup_question = result.replace("FOLLOWUP:", "").strip() if has_followup else None
@@ -186,6 +191,7 @@ if "interview_done" in st.session_state and st.session_state.interview_done:
                 item["answer"],
                 st.session_state.job_field,
                 st.session_state.level,
+                st.session_state.language,
             ))
 
         with st.expander(f"질문 {i+1}: {item['question'][:40]}..."):
@@ -201,5 +207,6 @@ if "interview_done" in st.session_state and st.session_state.interview_done:
             st.session_state.history,
             st.session_state.job_field,
             st.session_state.level,
+            st.session_state.language,
         ))
     st.write(overall)

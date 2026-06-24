@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
-from rag import create_vectorstore, search_resume
+from rag import create_vectorstore, search_resume, detect_language
 from agents import (
     generate_questions,
     evaluate_answer,
@@ -64,6 +64,7 @@ class EvaluateRequest(BaseModel):
     answer: str
     job_field: str = "일반"
     level: str = "신입"
+    language: str = "한국어"
 
 
 class FollowupRequest(BaseModel):
@@ -72,6 +73,7 @@ class FollowupRequest(BaseModel):
     previous_questions: list[str] = Field(default_factory=list)
     job_field: str = "일반"
     level: str = "신입"
+    language: str = "한국어"
 
 
 class HistoryItem(BaseModel):
@@ -83,6 +85,7 @@ class OverallFeedbackRequest(BaseModel):
     history: list[HistoryItem]
     job_field: str = "일반"
     level: str = "신입"
+    language: str = "한국어"
 
 
 @app.post("/upload")
@@ -134,8 +137,11 @@ async def get_questions(
     vectorstore = _get_vectorstore(session_id)
     resume_content = search_resume(vectorstore, "스킬 프로젝트 경험 학력 자격증")
 
+    # 이력서 언어를 감지해 면접 전체를 그 언어로 진행한다.
+    language = detect_language(resume_content)
+
     questions_text = await generate_questions(
-        resume_content, data.job_field, data.level
+        resume_content, data.job_field, data.level, language
     )
 
     questions = []
@@ -144,13 +150,13 @@ async def get_questions(
         if line and line[0].isdigit():
             questions.append(line)
 
-    return {"questions": questions}
+    return {"questions": questions, "language": language}
 
 
 @app.post("/evaluate")
 async def evaluate(data: EvaluateRequest, _: None = Depends(require_api_key)):
     feedback = await evaluate_answer(
-        data.question, data.answer, data.job_field, data.level
+        data.question, data.answer, data.job_field, data.level, data.language
     )
     return {"feedback": feedback}
 
@@ -168,6 +174,7 @@ async def followup(data: FollowupRequest, _: None = Depends(require_api_key)):
         data.previous_questions,
         data.job_field,
         data.level,
+        data.language,
     )
 
     if result.startswith("FOLLOWUP:"):
@@ -182,5 +189,7 @@ async def overall_feedback(
     data: OverallFeedbackRequest, _: None = Depends(require_api_key)
 ):
     history = [item.model_dump() for item in data.history]
-    feedback = await generate_overall_feedback(history, data.job_field, data.level)
+    feedback = await generate_overall_feedback(
+        history, data.job_field, data.level, data.language
+    )
     return {"feedback": feedback}

@@ -12,7 +12,7 @@ def _wrap(text: str) -> str:
     return f"<<<USER_DATA>>>\n{text}\n<<<END_USER_DATA>>>"
 
 
-async def generate_questions(resume_content: str, job_field: str, level: str):
+async def generate_questions(resume_content: str, job_field: str, level: str, language: str = "한국어"):
     llm = LLM(model="gpt-5-mini")
 
     interviewer = Agent(
@@ -26,7 +26,7 @@ async def generate_questions(resume_content: str, job_field: str, level: str):
     task = Task(
         description=f"""{INJECTION_GUARD}
         당신은 {job_field} 분야의 면접관입니다.
-        아래 이력서를 바탕으로 {level} 지원자에게 맞는 면접 질문 3개를 한국어로 만드세요.
+        아래 이력서를 바탕으로 {level} 지원자에게 맞는 면접 질문 3개를 {language}로 만드세요.
 
         [직무 적합성 — {job_field}]
         - {job_field} 직무에서 중요하게 평가하는 핵심 역량을 기준으로 질문할 것.
@@ -71,7 +71,7 @@ async def generate_questions(resume_content: str, job_field: str, level: str):
     return str(result)
 
 
-async def evaluate_answer(question: str, answer: str, job_field: str = "일반", level: str = "신입"):
+async def evaluate_answer(question: str, answer: str, job_field: str = "일반", level: str = "신입", language: str = "한국어"):
     llm = LLM(model="gpt-5-mini")
 
     evaluator = Agent(
@@ -84,7 +84,8 @@ async def evaluate_answer(question: str, answer: str, job_field: str = "일반",
 
     task = Task(
         description=f"""{INJECTION_GUARD}
-        아래 면접 질문과 지원자의 답변을 분석하고 면접 코칭을 해줘. 한국어로 답해줘.
+        아래 면접 질문과 지원자의 답변을 분석하고 면접 코칭을 해줘.
+        모든 내용과 아래 항목 제목을 {language}로 작성해줘.
 
         직무 분야: {job_field}
         지원자 수준: {level}
@@ -117,7 +118,7 @@ async def evaluate_answer(question: str, answer: str, job_field: str = "일반",
     return result.raw
 
 
-async def generate_followup(question: str, answer: str, previous_questions: list, job_field: str = "일반", level: str = "신입"):
+async def generate_followup(question: str, answer: str, previous_questions: list, job_field: str = "일반", level: str = "신입", language: str = "한국어"):
     llm = LLM(model="gpt-5-mini")
 
     previous = "\n".join(previous_questions) if previous_questions else "없음"
@@ -149,6 +150,7 @@ async def generate_followup(question: str, answer: str, previous_questions: list
         - 면접자가 모르겠다고 하거나 답변이 막힌 경우 꼬리질문 불필요
 
         [꼬리질문을 만들 때 (반드시 지킬 것)]
+        - 반드시 {language}로 작성할 것.
         - {job_field} 직무 관점에서 답변을 더 깊이 파고드는 질문으로.
         - 난이도는 "{level}" 수준을 유지할 것.
           (신입: 기초·경험 중심, 대규모 시스템 설계·아키텍처 질문 금지)
@@ -171,7 +173,7 @@ async def generate_followup(question: str, answer: str, previous_questions: list
     return str(result).strip()
 
 
-async def generate_overall_feedback(history: list, job_field: str = "일반", level: str = "신입"):
+async def generate_overall_feedback(history: list, job_field: str = "일반", level: str = "신입", language: str = "한국어"):
     llm = LLM(model="gpt-5-mini")
 
     qa_text = ""
@@ -188,7 +190,8 @@ async def generate_overall_feedback(history: list, job_field: str = "일반", le
 
     task = Task(
         description=f"""{INJECTION_GUARD}
-        아래 전체 면접 내용을 보고 종합 피드백을 한국어로 작성해줘.
+        아래 전체 면접 내용을 보고 종합 피드백을 작성해줘.
+        모든 내용과 아래 항목 제목을 {language}로 작성해줘.
 
         직무 분야: {job_field}
         지원자 수준: {level}
