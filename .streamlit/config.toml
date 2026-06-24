@@ -1,0 +1,4 @@
+# Streamlit 업로더 한도를 백엔드 검증(5MB)과 일치시킨다.
+# 이걸 안 두면 업로더가 기본 200MB까지 받은 뒤에야 백엔드가 거부 → UX 낭비.
+[server]
+maxUploadSize = 5
