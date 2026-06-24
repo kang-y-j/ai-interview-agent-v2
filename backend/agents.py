@@ -154,6 +154,8 @@ async def generate_followup(question: str, answer: str, previous_questions: list
         - 원본 질문이나 이전에 물어본 질문을 절대 그대로 반복하지 말 것.
           똑같거나 거의 같은 질문밖에 떠오르지 않으면 "SKIP" 으로 출력.
         - 질문 앞에 번호(1. 2. 3.)를 붙이지 말 것.
+        - 반드시 '하나의 주제'만 물을 것. A·B·C·D를 한꺼번에 나열해 요구하지 말 것.
+        - 2문장 이내로 간결하게.
 
         꼬리질문이 필요하면: "FOLLOWUP: [질문내용]" 형식으로 출력
         꼬리질문이 불필요하면: "SKIP" 으로만 출력
