@@ -144,7 +144,11 @@ if "started" in st.session_state and st.session_state.started and not st.session
                     has_followup = result.startswith("FOLLOWUP:")
                     followup_question = result.replace("FOLLOWUP:", "").strip() if has_followup else None
 
-                if has_followup:
+                # 꼬리질문이 이미 물어본 질문과 같으면(모델이 원질문을 복제하는 경우) 스킵
+                asked = {q.strip() for q in st.session_state.previous_questions}
+                is_new_followup = bool(followup_question) and followup_question.strip() not in asked
+
+                if is_new_followup:
                     st.session_state.current_question = followup_question
                     st.session_state.followup_count += 1
                     st.rerun()

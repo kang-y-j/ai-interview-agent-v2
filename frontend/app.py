@@ -92,8 +92,13 @@ if "started" in st.session_state and st.session_state.started and not st.session
                     })
                     data = res.json()
 
-                if data["has_followup"]:
-                    st.session_state.current_question = data["question"]
+                # 꼬리질문이 이미 물어본 질문과 같으면(모델이 원질문을 복제하는 경우) 스킵
+                followup_q = data["question"] if data.get("has_followup") else None
+                asked = {q.strip() for q in st.session_state.previous_questions}
+                is_new_followup = bool(followup_q) and followup_q.strip() not in asked
+
+                if is_new_followup:
+                    st.session_state.current_question = followup_q
                     st.session_state.followup_count += 1
                     st.rerun()
                 else:
