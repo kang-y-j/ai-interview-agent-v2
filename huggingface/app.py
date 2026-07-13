@@ -77,6 +77,9 @@ if uploaded_file:
                     tmp.write(content)
                     tmp_path = tmp.name
                 vectorstore = create_vectorstore(tmp_path)
+            except Exception:
+                st.error("이력서를 분석하지 못했습니다. 파일을 확인한 뒤 다시 시도하세요.")
+                st.stop()
             finally:
                 if tmp_path and os.path.exists(tmp_path):
                     os.remove(tmp_path)
@@ -86,18 +89,26 @@ if uploaded_file:
             st.session_state.level = level
 
         with st.spinner("질문 생성 중..."):
-            resume_content = search_resume(vectorstore, "스킬 프로젝트 경험 학력 자격증")
-            # 이력서 언어를 감지해 면접 전체를 그 언어로 진행
-            st.session_state.language = detect_language(resume_content)
-            questions_text = run_async(
-                generate_questions(resume_content, job_field, level, st.session_state.language)
-            )
+            try:
+                resume_content = search_resume(vectorstore, "스킬 프로젝트 경험 학력 자격증")
+                # 이력서 언어를 감지해 면접 전체를 그 언어로 진행
+                st.session_state.language = detect_language(resume_content)
+                questions_text = run_async(
+                    generate_questions(resume_content, job_field, level, st.session_state.language)
+                )
+            except Exception:
+                st.error("질문을 생성하지 못했습니다. 잠시 후 다시 시도하세요.")
+                st.stop()
 
             questions = []
             for line in questions_text.strip().split("\n"):
                 line = line.strip()
                 if line and line[0].isdigit():
                     questions.append(line)
+
+            if not questions:
+                st.error("생성된 질문이 없습니다. 다시 시도하세요.")
+                st.stop()
 
             st.session_state.questions = questions
             st.session_state.started = True
@@ -186,13 +197,17 @@ if "interview_done" in st.session_state and st.session_state.interview_done:
     st.header("📊 질문별 상세 피드백")
     for i, item in enumerate(st.session_state.history):
         with st.spinner(f"질문 {i+1} 평가 중..."):
-            feedback = run_async(evaluate_answer(
-                item["question"],
-                item["answer"],
-                st.session_state.job_field,
-                st.session_state.level,
-                st.session_state.language,
-            ))
+            try:
+                feedback = run_async(evaluate_answer(
+                    item["question"],
+                    item["answer"],
+                    st.session_state.job_field,
+                    st.session_state.level,
+                    st.session_state.language,
+                ))
+            except Exception:
+                st.error(f"질문 {i+1} 평가를 생성하지 못했습니다. 잠시 후 다시 시도하세요.")
+                continue
 
         with st.expander(f"질문 {i+1}: {item['question'][:40]}..."):
             st.write(f"**Q: {item['question']}**")
@@ -203,10 +218,14 @@ if "interview_done" in st.session_state and st.session_state.interview_done:
     # 종합 피드백
     st.header("🎯 종합 피드백")
     with st.spinner("종합 피드백 생성 중..."):
-        overall = run_async(generate_overall_feedback(
-            st.session_state.history,
-            st.session_state.job_field,
-            st.session_state.level,
-            st.session_state.language,
-        ))
+        try:
+            overall = run_async(generate_overall_feedback(
+                st.session_state.history,
+                st.session_state.job_field,
+                st.session_state.level,
+                st.session_state.language,
+            ))
+        except Exception:
+            st.error("종합 피드백을 생성하지 못했습니다. 잠시 후 다시 시도하세요.")
+            st.stop()
     st.write(overall)

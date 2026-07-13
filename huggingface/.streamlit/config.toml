@@ -2,3 +2,11 @@
 # 이걸 안 두면 업로더가 기본 200MB까지 받은 뒤에야 앱이 거부 → UX 낭비.
 [server]
 maxUploadSize = 5
+
+# Claude 스타일 테마 (따뜻한 크림 배경 + 코랄 포인트)
+[theme]
+primaryColor = "#D97757"             # Claude 코랄 — 버튼·포커스·진행바
+backgroundColor = "#FAF9F5"          # 메인 배경 — 따뜻한 종이색
+secondaryBackgroundColor = "#F0EEE6" # 카드·업로더·사이드바 — 크림
+textColor = "#141413"                # 본문 — 따뜻한 먹색
+font = "sans serif"

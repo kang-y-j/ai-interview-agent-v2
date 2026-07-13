@@ -18,7 +18,7 @@ pinned: false
 - **Streamlit** — UI
 - **CrewAI** — 면접관/코치 AI 에이전트
 - **LangChain + FAISS** — 이력서 RAG (검색 증강 생성)
-- **OpenAI (gpt-4o-mini)** — LLM
+- **OpenAI (gpt-5-mini)** — LLM
 
 ## 사용 방법
 1. 이력서 PDF 업로드

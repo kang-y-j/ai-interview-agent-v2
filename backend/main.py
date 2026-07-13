@@ -2,6 +2,7 @@ import os
 import hmac
 import secrets
 import tempfile
+import time
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,6 +36,7 @@ app.add_middleware(
 # 업로드 제한
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5MB
 PDF_MAGIC = b"%PDF-"
+SESSION_TTL_SECONDS = 60 * 60
 
 # 비밀 키 인증.
 # APP_API_KEY 가 설정돼 있으면 모든 주요 엔드포인트에서 X-API-Key 헤더를 요구한다.
@@ -50,7 +52,18 @@ def require_api_key(x_api_key: str = Header(None)):
         raise HTTPException(status_code=401, detail="유효하지 않은 API 키입니다.")
 
 
-vectorstores = {}
+vectorstores: dict[str, tuple[object, float]] = {}
+
+
+def _purge_expired_sessions(now: float | None = None):
+    now = time.monotonic() if now is None else now
+    expired_session_ids = [
+        session_id
+        for session_id, (_, created_at) in vectorstores.items()
+        if now - created_at >= SESSION_TTL_SECONDS
+    ]
+    for session_id in expired_session_ids:
+        del vectorstores[session_id]
 
 
 # ---- 요청 본문 스키마 (검증) ----
@@ -117,17 +130,22 @@ async def upload_resume(
             os.remove(tmp_path)
 
     # 추측 불가능한 세션 ID 발급 (임시파일명 기반 IDOR 방지)
+    _purge_expired_sessions()
     session_id = secrets.token_urlsafe(24)
-    vectorstores[session_id] = vectorstore
+    vectorstores[session_id] = (vectorstore, time.monotonic())
 
     return {"session_id": session_id}
 
 
 def _get_vectorstore(session_id: str):
-    vectorstore = vectorstores.get(session_id)
-    if vectorstore is None:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
-    return vectorstore
+    _purge_expired_sessions()
+    session = vectorstores.get(session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=404,
+            detail="세션을 찾을 수 없거나 만료되었습니다. 이력서를 다시 업로드하세요.",
+        )
+    return session[0]
 
 
 @app.post("/questions/{session_id}")
@@ -149,6 +167,12 @@ async def get_questions(
         line = line.strip()
         if line and line[0].isdigit():
             questions.append(line)
+
+    if not questions:
+        raise HTTPException(
+            status_code=502,
+            detail="질문 생성 결과를 해석하지 못했습니다. 다시 시도하세요.",
+        )
 
     return {"questions": questions, "language": language}
 
